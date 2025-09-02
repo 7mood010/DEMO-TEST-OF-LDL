@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>AI Property Genome — Demo</title>
+<!-- Optional OCR (only loads if you enable it in the UI) -->
+<script id="tess-cdn" defer data-enabled="false" src="" ></script>
+<style>
+  :root{
+    --bg:#0f1320; --card:#151a2b; --muted:#7f8dae; --text:#eaf0ff; --accent:#4fd1c5; --danger:#ff6b6b; --good:#22c55e; --warn:#f59e0b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;background:linear-gradient(135deg,#0b1020,#10162b);color:var(--text)}
+  header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #232a42;background:#0d1222;position:sticky;top:0;z-index:5}
+  .brand{display:flex;gap:10px;align-items:center}
+  .pill{background:#1a2240;border:1px solid #26305a;color:#cfe2ff;padding:6px 10px;border-radius:999px;font-size:12px}
+  .wrap{display:grid;grid-template-columns:300px 1fr;gap:14px;padding:16px}
+  aside{background:var(--card);border:1px solid #232a42;border-radius:12px;padding:12px}
+  main{display:grid;gap:14px}
+  .card{background:var(--card);border:1px solid #232a42;border-radius:14px;padding:14px}
+  h2,h3{margin:0 0 10px}
+  .muted{color:var(--muted)}
+  select, input, button, textarea{
+    background:#0d1222;color:var(--text);border:1px solid #26305a;border-radius:10px;padding:10px;font-size:14px
+  }
+  button{cursor:pointer}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .health{
+    display:flex;align-items:center;gap:16px;padding:12px;border:1px solid #223056;border-radius:12px;background:#10172b
+  }
+  .dial{width:110px;height:110px;border-radius:50%;background:
+      conic-gradient(var(--good) calc(var(--p)*1%), #23304f 0);
+    display:grid;place-items:center;border:3px solid #1f2945}
+  .dial span{font-weight:700;font-size:22px}
+  .badge{padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #2a365f;background:#10172b}
+  .ok{color:var(--good);border-color:#1f8d58}
+  .warn{color:var(--warn);border-color:#7b5c14}
+  .bad{color:var(--danger);border-color:#8a3434}
+  .tabs{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .tab{padding:8px 10px;border:1px solid #26305a;border-radius:10px;background:#0f1530;cursor:pointer}
+  .tab.active{outline:2px solid #4fd1c5}
+  .section{display:none;margin-top:10px}
+  .section.active{display:block}
+  .kv{display:grid;grid-template-columns:180px 1fr;gap:8px;margin:8px 0}
+  .bar{height:8px;background:#23304f;border-radius:999px;overflow:hidden}
+  .bar > i{display:block;height:8px;background:linear-gradient(90deg,#4fd1c5,#22c55e)}
+  .flex{display:flex;gap:10px;align-items:center}
+  .hr{height:1px;background:#223056;margin:10px 0}
+  .footnote{font-size:12px;color:#96a3c7}
+  /* Kiosk mode */
+  body.kiosk{font-size:18px}
+  body.kiosk header, body.kiosk .card, body.kiosk aside{border-width:2px}
+  body.kiosk .tab{font-size:18px;padding:14px 16px}
+  .bigbtns{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .bigbtn{padding:18px;border-radius:16px;border:2px solid #31426f;background:#0e1734;font-size:20px;text-align:center}
+  /* RTL adjustments */
+  [dir="rtl"] .kv{grid-template-columns:1fr 180px}
+  a { color:#a0c7ff; text-decoration:none }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <strong>AI Property Genome</strong>
+    <span class="pill">Demo v1</span>
+  </div>
+  <div class="row">
+    <button id="langBtn" aria-label="toggle language">عربي</button>
+    <button id="kioskBtn" aria-label="toggle kiosk">Kiosk</button>
+  </div>
+</header>
+
+<div class="wrap" id="app">
+  <aside>
+    <h3 id="t_select">Select Property</h3>
+    <select id="propSelect" style="width:100%"></select>
+    <div class="hr"></div>
+    <h3 id="t_actions">Quick Actions</h3>
+    <div class="row">
+      <button id="goDNA">DNA Card</button>
+      <button id="goVerify">Verify Contract</button>
+      <button id="goInvest">Investor Sim</button>
+    </div>
+    <div class="hr"></div>
+    <div class="footnote" id="t_note">Tip: use the Kiosk button for a large Arabic UI + voice hints.</div>
+  </aside>
+
+  <main>
+    <!-- DNA CARD -->
+    <section class="card" id="dnaCard">
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <h2 id="t_card">Property DNA Card</h2>
+          <div class="muted" id="metaLine">—</div>
+        </div>
+        <div class="health" role="status" aria-live="polite">
+          <div class="dial" id="dial" style="--p:0"><span id="scoreNum">0</span></div>
+          <div>
+            <div class="row">
+              <span class="badge" id="bLegal">Legal: —</span>
+              <span class="badge" id="bFin">Financial: —</span>
+              <span class="badge" id="bPhys">Physical: —</span>
+              <span class="badge" id="bExp">Experience: —</span>
+              <span class="badge" id="bUrban">Urban: —</span>
+            </div>
+            <div class="footnote" id="t_weights">Weights: Legal 30%, Financial 30%, Physical 15%, Experience 15%, Urban 10%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="legal" id="tab_legal">Legal</button>
+        <button class="tab" data-tab="financial" id="tab_fin">Financial</button>
+        <button class="tab" data-tab="physical" id="tab_phys">Physical</button>
+        <button class="tab" data-tab="experience" id="tab_exp">Experience</button>
+        <button class="tab" data-tab="urban" id="tab_urban">Urban</button>
+      </div>
+
+      <div class="section active" id="sec_legal" role="tabpanel" aria-labelledby="tab_legal">
+        <div class="kv"><div id="t_verif">Verification</div><div id="v_verif">—</div></div>
+        <div class="kv"><div id="t_status">Contract status</div><div id="v_status">—</div></div>
+        <div class="kv"><div id="t_owner">Last owner</div><div id="v_owner">—</div></div>
+        <div class="kv"><div id="t_fraud">Fraud risk</div>
+          <div style="display:grid;gap:4px">
+            <div class="bar"><i id="barFraud" style="width:0%"></i></div>
+            <div class="footnote" id="v_fraud">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="sec_financial" role="tabpanel" aria-labelledby="tab_fin">
+        <div class="kv"><div id="t_hist">Value (past)</div><div id="v_hist">—</div></div>
+        <div class="kv"><div id="t_fore">Forecast (5y)</div><div id="v_fore">—</div></div>
+        <div class="kv"><div id="t_rent">Rent yield</div><div id="v_rent">—</div></div>
+      </div>
+
+      <div class="section" id="sec_physical" role="tabpanel" aria-labelledby="tab_phys">
+        <div class="kv"><div id="t_year">Year built</div><div id="v_year">—</div></div>
+        <div class="kv"><div id="t_sust">Sustainability</div><div id="v_sust">—</div></div>
+        <div class="kv"><div id="t_safe">Safety</div><div id="v_safe">—</div></div>
+      </div>
+
+      <div class="section" id="sec_experience" role="tabpanel" aria-labelledby="tab_exp">
+        <div class="kv"><div id="t_sat">Satisfaction</div><div id="v_sat">—</div></div>
+        <div class="kv"><div id="t_wait">Avg wait</div><div id="v_wait">—</div></div>
+        <div class="kv"><div id="t_acc">Accessibility</div><div id="v_acc">—</div></div>
+        <div class="hr"></div>
+        <div class="grid-2">
+          <textarea id="complaint" placeholder="Add a complaint (demo)..."></textarea>
+          <div class="row">
+            <button id="addComplaint">Submit Complaint</button>
+            <span class="footnote" id="t_compnote">Submitting a complaint lowers Experience subscore slightly for demo.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="sec_urban" role="tabpanel" aria-labelledby="tab_urban">
+        <div class="kv"><div id="t_heat">Demand heat index</div><div id="v_heat">—</div></div>
+        <div class="kv"><div id="t_conn">Connectivity</div><div id="v_conn">—</div></div>
+        <div class="kv"><div id="t_lu">Land-use efficiency</div><div id="v_lu">—</div></div>
+      </div>
+    </section>
+
+    <!-- VERIFY -->
+    <section class="card" id="verifyCard" style="display:none">
+      <h2 id="t_verify">Verify Contract</h2>
+      <div class="footnote" id="t_vdesc">Paste contract text (quick demo) or enable OCR to read from an image.</div>
+      <div class="grid-2">
+        <textarea id="contractText" placeholder="Example:
+Title Deed: TD-12345
+Owner: Mohammed yasser
+Status: active"></textarea>
+        <div>
+          <div class="row">
+            <button id="quickVerify">Quick Verify</button>
+            <label class="row" style="align-items:center;gap:6px">
+              <input type="checkbox" id="enableOcr"/> <span id="t_ocr">Enable OCR (loads Tesseract.js)</span>
+            </label>
+          </div>
+          <div class="hr"></div>
+          <input type="file" id="fileInput" accept="image/*,application/pdf"/>
+          <div id="verifyResult" style="margin-top:12px"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INVESTOR -->
+    <section class="card" id="investCard" style="display:none">
+      <h2 id="t_invest">Investor Mini-Simulator</h2>
+      <div class="grid-3">
+        <div>
+          <label id="t_supply">% New supply</label>
+          <input type="range" id="rngSupply" min="-5" max="10" step="1" value="0"/>
+          <div><span id="valSupply">0</span>%</div>
+        </div>
+        <div>
+          <label id="t_rate">% Interest rate change</label>
+          <input type="range" id="rngRate" min="-2" max="3" step="0.5" value="0"/>
+          <div><span id="valRate">0</span>%</div>
+        </div>
+        <div>
+          <div id="simOut" class="badge ok">Δ Forecast: +0.0% | New 5y: —</div>
+        </div>
+      </div>
+      <div class="footnote" id="t_coeff">Demo coefficients: valueΔ = -0.4×supply + -0.6×rate (tunable).</div>
+    </section>
+
+    <!-- KIOSK -->
+    <section class="card" id="kioskCard" style="display:none">
+      <h2 id="t_kiosk">Kiosk Mode</h2>
+      <div class="bigbtns">
+        <div class="bigbtn" id="k1">🧬 عرض بطاقة الجينوم</div>
+        <div class="bigbtn" id="k2">📝 تحقق من العقد</div>
+        <div class="bigbtn" id="k3">📈 محاكاة المستثمر</div>
+        <div class="bigbtn" id="k4">🎤 تعليمات صوتية</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ------------------ Seed Data (two properties) ------------------ */
+const PROPS = [
+  {
+    id:"PG-2025-0001",
+    meta:{ titleDeed:"TD-12345", unit:"A-1203", community:"Marina" },
+    legalDNA:{ verification:"blockchain-verified", contractStatus:"active", fraudRisk:7, lastOwner:"Mohammed Yasser", subscore:90 },
+    financialDNA:{ past:[1200000,1320000,1490000,1650000], forecast5yPct:12, rentYieldPct:7.5, subscore:84 },
+    physicalDNA:{ yearBuilt:2016, sustainability:78, safety:"A-", subscore:80 },
+    experienceDNA:{ satisfaction:4.2, complaintsOpen:0, avgWaitMin:6, accessibility:82, subscore:86 },
+    urbanContextDNA:{ demandHeat:73, connectivity:"metro", landUseEff:0.83, subscore:78 }
+  },
+  {
+    id:"PG-2025-0002",
+    meta:{ titleDeed:"TD-67890", unit:"B-905", community:"Creek" },
+    legalDNA:{ verification:"pending", contractStatus:"expiring-soon", fraudRisk:22, lastOwner:"Hash-xyz", subscore:68 },
+    financialDNA:{ past:[900000,930000,960000,990000], forecast5yPct:6, rentYieldPct:6.1, subscore:70 },
+    physicalDNA:{ yearBuilt:2009, sustainability:65, safety:"B", subscore:72 },
+    experienceDNA:{ satisfaction:3.6, complaintsOpen:2, avgWaitMin:14, accessibility:74, subscore:70 },
+    urbanContextDNA:{ demandHeat:61, connectivity:"parking only", landUseEff:0.76, subscore:69 }
+  }
+];
+
+/* ------------------ i18n (EN/AR) ------------------ */
+const STR = {
+  en:{
+    select:"Select Property", actions:"Quick Actions", note:"Tip: use the Kiosk button for a large Arabic UI + voice hints.",
+    card:"Property DNA Card", weights:"Weights: Legal 30%, Financial 30%, Physical 15%, Experience 15%, Urban 10%",
+    legal:"Legal", financial:"Financial", physical:"Physical", experience:"Experience", urban:"Urban",
+    verif:"Verification", status:"Contract status", owner:"Last owner", fraud:"Fraud risk",
+    hist:"Value (past)", fore:"Forecast (5y)", rent:"Rent yield",
+    year:"Year built", sust:"Sustainability", safe:"Safety",
+    sat:"Satisfaction", wait:"Avg wait", acc:"Accessibility", compnote:"Submitting a complaint lowers Experience subscore slightly for demo.",
+    heat:"Demand heat index", conn:"Connectivity", lu:"Land-use efficiency",
+    verify:"Verify Contract", vdesc:"Paste contract text (quick demo) or enable OCR to read from an image.", ocr:"Enable OCR (loads Tesseract.js)",
+    invest:"Investor Mini-Simulator", supply:"% New supply", rate:"% Interest rate change",
+    coeff:"Demo coefficients: valueΔ = -0.4×supply + -0.6×rate (tunable).",
+    kiosk:"Kiosk Mode",
+    btnDNA:"DNA Card", btnVerify:"Verify Contract", btnInvest:"Investor Sim"
+  },
+  ar:{
+    select:"اختر العقار", actions:"إجراءات سريعة", note:"نصيحة: استخدم وضع الكشك لواجهة عربية كبيرة مع تعليمات صوتية.",
+    card:"بطاقة الجينوم العقاري", weights:"الأوزان: قانوني 30%، مالي 30%، مادي 15%، تجربة 15%، حضري 10%",
+    legal:"القانوني", financial:"المالي", physical:"المادي", experience:"التجربة", urban:"الحضري",
+    verif:"التحقق", status:"حالة العقد", owner:"آخر مالك", fraud:"مخاطر الاحتيال",
+    hist:"القيمة (سابقاً)", fore:"التوقع (5 سنوات)", rent:"عائد الإيجار",
+    year:"سنة البناء", sust:"الاستدامة", safe:"السلامة",
+    sat:"الرضا", wait:"متوسط الانتظار", acc:"إتاحة الوصول", compnote:"إضافة شكوى تُنقص درجة التجربة بشكل بسيط (لأغراض العرض).",
+    heat:"مؤشر سخونة الطلب", conn:"الاتصال", lu:"كفاءة استخدام الأرض",
+    verify:"تحقق من العقد", vdesc:"ألصق نص العقد (عرض سريع) أو فعّل OCR لقراءة صورة.", ocr:"تفعيل OCR (تحميل Tesseract.js)",
+    invest:"محاكاة المستثمر", supply:"٪ زيادة العرض", rate:"٪ تغير الفائدة",
+    coeff:"معاملات العرض: Δالقيمة = ‎-0.4×العرض + ‎-0.6×الفائدة (قابلة للتعديل).",
+    kiosk:"وضع الكشك",
+    btnDNA:"بطاقة الجينوم", btnVerify:"تحقق من العقد", btnInvest:"محاكاة المستثمر"
+  }
+};
+let lang = "en";
+function T(k){ return STR[lang][k]; }
+
+/* ------------------ Helpers ------------------ */
+function fmtAED(x){ return "AED " + x.toLocaleString(); }
+function pct(x){ const sign = x>0?"+":""; return sign + x.toFixed(1) + "%"; }
+function badgeClass(score){ if(score>=80) return "badge ok"; if(score>=60) return "badge warn"; return "badge bad"; }
+
+const weights = { legal:0.30, financial:0.30, physical:0.15, experience:0.15, urban:0.10 };
+
+function calcHealth(p){
+  const s = p.legalDNA.subscore*weights.legal +
+            p.financialDNA.subscore*weights.financial +
+            p.physicalDNA.subscore*weights.physical +
+            p.experienceDNA.subscore*weights.experience +
+            p.urbanContextDNA.subscore*weights.urban;
+  return Math.round(s);
+}
+
+/* ------------------ State & UI ------------------ */
+const sel = id => document.getElementById(id);
+const propSelect = sel("propSelect");
+let current = PROPS[0];
+
+function populateSelect(){
+  propSelect.innerHTML = PROPS.map((p,i)=>`<option value="${i}">${p.id} — ${p.meta.community}</option>`).join("");
+  propSelect.value = "0";
+}
+function setLang(newLang){
+  lang = newLang;
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang==="ar" ? "rtl" : "ltr";
+  sel("t_select").textContent = T("select");
+  sel("t_actions").textContent = T("actions");
+  sel("t_note").textContent = T("note");
+  sel("t_card").textContent = T("card");
+  sel("t_weights").textContent = T("weights");
+  sel("tab_legal").textContent = T("legal");
+  sel("tab_fin").textContent = T("financial");
+  sel("tab_phys").textContent = T("physical");
+  sel("tab_exp").textContent = T("experience");
+  sel("tab_urban").textContent = T("urban");
+  sel("t_verif").textContent = T("verif");
+  sel("t_status").textContent = T("status");
+  sel("t_owner").textContent = T("owner");
+  sel("t_fraud").textContent = T("fraud");
+  sel("t_hist").textContent = T("hist");
+  sel("t_fore").textContent = T("fore");
+  sel("t_rent").textContent = T("rent");
+  sel("t_year").textContent = T("year");
+  sel("t_sust").textContent = T("sust");
+  sel("t_safe").textContent = T("safe");
+  sel("t_sat").textContent = T("sat");
+  sel("t_wait").textContent = T("wait");
+  sel("t_acc").textContent = T("acc");
+  sel("t_compnote").textContent = T("compnote");
+  sel("t_heat").textContent = T("heat");
+  sel("t_conn").textContent = T("conn");
+  sel("t_lu").textContent = T("lu");
+  sel("t_verify").textContent = T("verify");
+  sel("t_vdesc").textContent = T("vdesc");
+  sel("t_ocr").textContent = T("ocr");
+  sel("t_invest").textContent = T("invest");
+  sel("t_supply").textContent = T("supply");
+  sel("t_rate").textContent = T("rate");
+  sel("t_coeff").textContent = T("coeff");
+  sel("t_kiosk").textContent = T("kiosk");
+  sel("goDNA").textContent = T("btnDNA");
+  sel("goVerify").textContent = T("btnVerify");
+  sel("goInvest").textContent = T("btnInvest");
+}
+function updateDNA(){
+  current.health = calcHealth(current);
+  sel("metaLine").textContent = `${current.id} · ${current.meta.titleDeed} · ${current.meta.unit} · ${current.meta.community}`;
+  sel("dial").style.setProperty("--p", current.health);
+  sel("scoreNum").textContent = current.health;
+
+  const sL = current.legalDNA.subscore, sF=current.financialDNA.subscore, sP=current.physicalDNA.subscore, sE=current.experienceDNA.subscore, sU=current.urbanContextDNA.subscore;
+  sel("bLegal").className = badgeClass(sL); sel("bLegal").textContent = (lang==="ar"?"قانوني: ":"Legal: ")+sL;
+  sel("bFin").className = badgeClass(sF); sel("bFin").textContent = (lang==="ar"?"مالي: ":"Financial: ")+sF;
+  sel("bPhys").className = badgeClass(sP); sel("bPhys").textContent = (lang==="ar"?"مادي: ":"Physical: ")+sP;
+  sel("bExp").className = badgeClass(sE); sel("bExp").textContent = (lang==="ar"?"تجربة: ":"Experience: ")+sE;
+  sel("bUrban").className = badgeClass(sU); sel("bUrban").textContent = (lang==="ar"?"حضري: ":"Urban: ")+sU;
+
+  // Legal
+  sel("v_verif").textContent = current.legalDNA.verification;
+  sel("v_status").textContent = current.legalDNA.contractStatus;
+  sel("v_owner").textContent = current.legalDNA.lastOwner || "—";
+  sel("barFraud").style.width = Math.min(current.legalDNA.fraudRisk,100)+"%";
+  sel("v_fraud").textContent = current.legalDNA.fraudRisk + "%";
+  // Financial
+  sel("v_hist").textContent = current.financialDNA.past.map(fmtAED).join(" → ");
+  sel("v_fore").textContent = pct(current.financialDNA.forecast5yPct);
+  sel("v_rent").textContent = current.financialDNA.rentYieldPct.toFixed(1) + "%";
+  // Physical
+  sel("v_year").textContent = current.physicalDNA.yearBuilt;
+  sel("v_sust").textContent = current.physicalDNA.sustainability + "/100";
+  sel("v_safe").textContent = current.physicalDNA.safety;
+  // Experience
+  sel("v_sat").textContent = current.experienceDNA.satisfaction.toFixed(1) + "/5";
+  sel("v_wait").textContent = current.experienceDNA.avgWaitMin + " min";
+  sel("v_acc").textContent = current.experienceDNA.accessibility + "/100";
+  // Urban
+  sel("v_heat").textContent = current.urbanContextDNA.demandHeat + "/100";
+  sel("v_conn").textContent = current.urbanContextDNA.connectivity;
+  sel("v_lu").textContent = Math.round(current.urbanContextDNA.landUseEff*100) + "%";
+}
+
+/* Tabs switching */
+document.querySelectorAll(".tab").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    btn.classList.add("active");
+    const which = btn.dataset.tab;
+    document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+    sel("sec_"+which).classList.add("active");
+  });
+});
+
+/* Navigation cards */
+function showCard(which){
+  ["dnaCard","verifyCard","investCard","kioskCard"].forEach(id=> sel(id).style.display = (id===which? "block":"none"));
+}
+sel("goDNA").onclick = ()=>showCard("dnaCard");
+sel("goVerify").onclick = ()=>showCard("verifyCard");
+sel("goInvest").onclick = ()=>showCard("investCard");
+
+/* Select change */
+propSelect?.addEventListener("change", (e)=>{
+  current = PROPS[parseInt(e.target.value,10)];
+  updateDNA();
+});
+
+/* Complaints: simple demo lowers Experience subscore by 2 (min 40) */
+sel("addComplaint").onclick = ()=>{
+  const txt = sel("complaint").value.trim();
+  if(!txt) return;
+  current.experienceDNA.subscore = Math.max(40, current.experienceDNA.subscore - 2);
+  current.experienceDNA.complaintsOpen += 1;
+  current.experienceDNA.satisfaction = Math.max(1, current.experienceDNA.satisfaction - 0.1);
+  updateDNA();
+  sel("complaint").value = "";
+  alert(lang==="ar" ? "تم تسجيل الشكوى (عرض توضيحي)" : "Complaint recorded (demo)");
+};
+
+/* Quick Verify (regex parse of pasted text) */
+function quickVerifyFromText(text){
+  const deed = /Title\s*Deed\s*:\s*([A-Za-z0-9\-]+)/i.exec(text)?.[1];
+  const owner = /Owner\s*:\s*([A-Za-z0-9\-\_]+)/i.exec(text)?.[1];
+  let result = "";
+  if(!deed){ result += (lang==="ar"?"لم يتم العثور على رقم السجل. ":"No title deed found. "); }
+  if(!owner){ result += (lang==="ar"?"لم يتم العثور على اسم المالك. ":"No owner found. "); }
+  const okDeed = deed && deed === current.meta.titleDeed;
+  const okOwner = owner && owner === current.legalDNA.lastOwner;
+  let status, cls;
+  if(okDeed && okOwner){ status = (lang==="ar"?"مُوثق":"Verified"); cls="ok"; }
+  else if(okDeed || okOwner){ status = (lang==="ar"?"تحذير (تطابق جزئي)":"Warning (partial match)"); cls="warn"; }
+  else { status = (lang==="ar"?"مرفوض: لا تطابق":"Flagged: mismatch"); cls="bad"; }
+  return { deed, owner, status, cls };
+}
+sel("quickVerify").onclick = ()=>{
+  const t = sel("contractText").value;
+  const {deed,owner,status,cls} = quickVerifyFromText(t);
+  sel("verifyResult").innerHTML = `
+    <div class="badge ${cls}">${status}</div>
+    <div class="footnote">${lang==="ar"?"رقم السجل: ":"Title Deed: "}${deed||"—"} · ${lang==="ar"?"المالك: ":"Owner: "}${owner||"—"}</div>
+  `;
+};
+
+/* Optional OCR (loads Tesseract.js CDN only if enabled) */
+sel("enableOcr").addEventListener("change",(e)=>{
+  const s = sel("tess-cdn");
+  if(e.target.checked){
+    s.setAttribute("src","https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js");
+    s.setAttribute("data-enabled","true");
+    alert(lang==="ar"?"تم تفعيل OCR — اختر صورة عقد":"OCR enabled — choose a contract image");
+  }else{
+    s.setAttribute("src","");
+    s.setAttribute("data-enabled","false");
+  }
+});
+sel("fileInput").addEventListener("change", async (e)=>{
+  const scriptEnabled = sel("tess-cdn").getAttribute("data-enabled")==="true";
+  if(!scriptEnabled){ alert(lang==="ar"?"فعّل OCR أولاً":"Enable OCR first"); return; }
+  const file = e.target.files?.[0];
+  if(!file) return;
+  if(!window.Tesseract){ alert("Tesseract not loaded."); return; }
+  sel("verifyResult").textContent = lang==="ar"?"جاري قراءة الصورة...":"Reading image...";
+  const { data:{ text } } = await Tesseract.recognize(file, 'eng');
+  const {deed,owner,status,cls} = quickVerifyFromText(text);
+  sel("verifyResult").innerHTML = `
+    <div class="badge ${cls}">${status}</div>
+    <div class="footnote">OCR → ${text.slice(0,120).replace(/\n/g,' ')}...</div>
+  `;
+});
+
+/* Investor sim */
+const rngSupply = sel("rngSupply"), rngRate = sel("rngRate"), valSupply = sel("valSupply"), valRate = sel("valRate"), simOut = sel("simOut");
+function updateSim(){
+  const s = Number(rngSupply.value); const r = Number(rngRate.value);
+  valSupply.textContent = s; valRate.textContent = r;
+  const a=-0.4, b=-0.6;
+  const delta = a*s + b*r; // %
+  const newForecast = Math.max(-10, Math.min(30, current.financialDNA.forecast5yPct + delta));
+  simOut.textContent = `Δ Forecast: ${pct(delta)} | New 5y: ${pct(newForecast)}`;
+  // Also nudge Financial subscore & Health score for demo
+  const base = current.financialDNA.subscore;
+  current.financialDNA.subscore = Math.max(40, Math.min(95, Math.round(base + delta*0.6)));
+  updateDNA();
+}
+rngSupply.oninput = updateSim; rngRate.oninput = updateSim;
+
+/* Kiosk */
+function speak(text){
+  try{ window.speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(text)); }catch(e){}
+}
+sel("k1").onclick = ()=>{ showCard("dnaCard"); speak("عرض بطاقة الجينوم"); };
+sel("k2").onclick = ()=>{ showCard("verifyCard"); speak("تحقق من العقد"); };
+sel("k3").onclick = ()=>{ showCard("investCard"); speak("محاكاة المستثمر"); };
+sel("k4").onclick = ()=>{ speak("قل: تحقق من العقد. استخدم الأزرار الكبيرة للتنقل."); };
+
+/* Top bar buttons */
+sel("langBtn").onclick = ()=>{
+  setLang(lang==="en"?"ar":"en");
+  sel("langBtn").textContent = lang==="en"?"عربي":"EN";
+  updateDNA();
+};
+sel("kioskBtn").onclick = ()=>{
+  const on = !document.body.classList.contains("kiosk");
+  document.body.classList.toggle("kiosk", on);
+  showCard("kioskCard");
+  if(on && lang!=="ar"){ setLang("ar"); sel("langBtn").textContent = "EN"; }
+  if(on) speak("تم تفعيل وضع الكشك. استخدم الأزرار الكبيرة.");
+};
+
+/* Init */
+populateSelect();
+setLang("en");
+updateDNA();
+showCard("dnaCard");
+</script>
+</body>
+</html>
